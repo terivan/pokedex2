@@ -7,6 +7,10 @@ import (
 	"os"
 	po "pokedex2/internal/PokeAPImanager"
 	"strings"
+	 _ "github.com/lib/pq"
+	"github.com/joho/godotenv"
+	database "pokedex2/internal/database"
+	"database/sql"
 )
 
 type Locations struct {
@@ -22,6 +26,7 @@ type Locations struct {
 type config struct {
 	NextUrl     string
 	PreviousUrl string
+	dbQueries *database.Queries
 	// UrlToUse    string
 	// StepSize    int64
 }
@@ -135,10 +140,15 @@ func cleanInput(text string) []string {
 }
 
 func main() {
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+	db, _ := sql.Open("postgres", dbURL)
+	dbQueries := database.New(db)
 	var cfg config
 
 	cfg.NextUrl = "https://pokeapi.co/api/v2/location-area/?limit=20&offset=0"
 	cfg.PreviousUrl = ""
+	cfg.dbQueries = dbQueries
 
 	for {
 		fmt.Print("Pokedex > ")
