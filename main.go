@@ -6,25 +6,15 @@ import (
 	"fmt"
 	"os"
 	po "pokedex2/internal/PokeAPImanager"
+	ca "pokedex2/internal/pokecache"
 	"strings"
 )
 
-type Locations struct {
-	Count    int    `json:"count"`
-	Next     string `json:"next"`
-	Previous string `json:"previous"`
-	Results  []struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	} `json:"results"`
-}
 
 type config struct {
 	NextUrl     string
 	PreviousUrl string
-
-	// UrlToUse    string
-	// StepSize    int64
+	cache ca.Cache
 }
 
 type cliCommand struct {
@@ -39,8 +29,6 @@ type cliCommand struct {
 
 func (c *config) mapCommandFunc(forward bool) error {
 
-	// step := c.StepSize
-	//
 	var urlToUse string
 
 	if !forward && c.PreviousUrl == "" {
@@ -56,14 +44,21 @@ func (c *config) mapCommandFunc(forward bool) error {
 		fmt.Println("Wrong URL!")
 	}
 
-	res, err := po.GetLocations(urlToUse)
-
-	if err != nil {
-		fmt.Println("Couldn't read!")
-		return err
+	val, ok := c.cache.Get(urlToUse)
+	var res []byte
+	var err error
+	if ok {
+		res = val
+		err = nil
+	}  else {
+		res, err = po.GetLocations(urlToUse)
+		if err != nil {
+			fmt.Println("Couldn't read locations from the interwebs!")
+			return err
+		}
 	}
-
-	var locations Locations
+	
+	var locations po.Locations
 	errLoc := json.Unmarshal(res, &locations)
 
 	if errLoc != nil {
@@ -85,10 +80,11 @@ func (c *config) mapCommandFunc(forward bool) error {
 func (c *config) helpCommandFunc() error {
 	fmt.Println(`Welcome to the Pokedex!
 				Usage:
-				help: Displays a help message
+				help: Gives instructions/help
 				exit: Exit the Pokedex
 				map: Next 20 cities
-				mapb: Previous 20 cities`)
+				mapb: Previous 20 cities
+				explore: Explore pokemon in location`)
 	return nil
 }
 
@@ -117,14 +113,14 @@ func (c *config) commandMap() map[string]cliCommand {
 
 	commandMap["map"] = cliCommand{
 		name:        "map",
-		description: "Map",
+		description: "Next 20 cities",
 		command: func(c *config) error {
 			return c.mapCommandFunc(true)
 		}}
 
 	commandMap["mapb"] = cliCommand{
 		name:        "mapb",
-		description: "Map back",
+		description: "Previous 20 cities",
 		command: func(c *config) error {
 			return c.mapCommandFunc(false)
 		}}
@@ -148,10 +144,13 @@ func cleanInput(text string) []string {
 
 func main() {
 
-	var cfg config
+	cfg := config{
+		NextUrl: "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20",
+		PreviousUrl: "",
+		cache: *ca.NewCache(5),
+	}
 
-	cfg.NextUrl = "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20"
-	cfg.PreviousUrl = ""
+
 
 	mapOfFuncs := cfg.commandMap()
 	scanner := bufio.NewScanner(os.Stdin)
