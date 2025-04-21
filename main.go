@@ -7,10 +7,6 @@ import (
 	"os"
 	po "pokedex2/internal/PokeAPImanager"
 	"strings"
-	 _ "github.com/lib/pq"
-	"github.com/joho/godotenv"
-	database "pokedex2/internal/database"
-	"database/sql"
 )
 
 type Locations struct {
@@ -26,7 +22,7 @@ type Locations struct {
 type config struct {
 	NextUrl     string
 	PreviousUrl string
-	dbQueries *database.Queries
+
 	// UrlToUse    string
 	// StepSize    int64
 }
@@ -36,6 +32,10 @@ type cliCommand struct {
 	description string
 	command     func(*config) error
 }
+
+// func (c *config) exploreCommandFunc() error {
+// 	return nil
+// }
 
 func (c *config) mapCommandFunc(forward bool) error {
 
@@ -129,6 +129,13 @@ func (c *config) commandMap() map[string]cliCommand {
 			return c.mapCommandFunc(false)
 		}}
 
+	// commandMap["explore"] = cliCommand{
+	// 	name:        "explore",
+	// 	description: "Explore pokemon in location",
+	// 	command: func(c *config) error {
+	// 		return c.exploreCommandFunc(false)
+	// 	}}
+
 	return commandMap
 }
 
@@ -140,20 +147,18 @@ func cleanInput(text string) []string {
 }
 
 func main() {
-	godotenv.Load()
-	dbURL := os.Getenv("DB_URL")
-	db, _ := sql.Open("postgres", dbURL)
-	dbQueries := database.New(db)
+
 	var cfg config
 
-	cfg.NextUrl = "https://pokeapi.co/api/v2/location-area/?limit=20&offset=0"
+	cfg.NextUrl = "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20"
 	cfg.PreviousUrl = ""
-	cfg.dbQueries = dbQueries
+
+	mapOfFuncs := cfg.commandMap()
+	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
 		fmt.Print("Pokedex > ")
-		mapOfFuncs := cfg.commandMap()
-		scanner := bufio.NewScanner(os.Stdin)
+
 		scanner.Scan()
 		text := scanner.Text()
 		commandText := cleanInput(strings.Split(text, ">")[0])
