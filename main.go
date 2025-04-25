@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	po "pokedex2/internal/PokeAPImanager"
@@ -10,22 +11,29 @@ import (
 	"strings"
 )
 
-
 type config struct {
 	NextUrl     string
 	PreviousUrl string
-	cache ca.Cache
+	cache       ca.Cache
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	command     func(*config) error
+	command     func(configuration *config, args []string) error
 }
 
-// func (c *config) exploreCommandFunc() error {
-// 	return nil
-// }
+func (c *config) exploreCommandFunc(names []string) error {
+	if names != nil {
+		for _, name := range names {
+			fmt.Println(name)
+		}
+		return nil
+	} else {
+		return errors.New("No name inserted!")
+	}
+
+}
 
 func (c *config) mapCommandFunc(forward bool) error {
 
@@ -50,14 +58,14 @@ func (c *config) mapCommandFunc(forward bool) error {
 	if ok {
 		res = val
 		err = nil
-	}  else {
+	} else {
 		res, err = po.GetLocations(urlToUse)
 		if err != nil {
 			fmt.Println("Couldn't read locations from the interwebs!")
 			return err
 		}
 	}
-	
+
 	var locations po.Locations
 	errLoc := json.Unmarshal(res, &locations)
 
@@ -100,37 +108,37 @@ func (c *config) commandMap() map[string]cliCommand {
 	commandMap["help"] = cliCommand{
 		name:        "help",
 		description: "Gives instructions/help",
-		command: func(c *config) error {
+		command: func(c *config, args []string) error {
 			return c.helpCommandFunc()
 		}}
 
 	commandMap["exit"] = cliCommand{
 		name:        "exit",
 		description: "Exits the app",
-		command: func(c *config) error {
+		command: func(c *config, args []string) error {
 			return c.exitCommandFunc()
 		}}
 
 	commandMap["map"] = cliCommand{
 		name:        "map",
 		description: "Next 20 cities",
-		command: func(c *config) error {
+		command: func(c *config, args []string) error {
 			return c.mapCommandFunc(true)
 		}}
 
 	commandMap["mapb"] = cliCommand{
 		name:        "mapb",
 		description: "Previous 20 cities",
-		command: func(c *config) error {
+		command: func(c *config, args []string) error {
 			return c.mapCommandFunc(false)
 		}}
 
-	// commandMap["explore"] = cliCommand{
-	// 	name:        "explore",
-	// 	description: "Explore pokemon in location",
-	// 	command: func(c *config) error {
-	// 		return c.exploreCommandFunc(false)
-	// 	}}
+	commandMap["explore"] = cliCommand{
+		name:        "explore",
+		description: "Explore pokemon in location",
+		command: func(c *config, args []string) error {
+			return c.exploreCommandFunc(args)
+		}}
 
 	return commandMap
 }
@@ -145,12 +153,10 @@ func cleanInput(text string) []string {
 func main() {
 
 	cfg := config{
-		NextUrl: "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20",
+		NextUrl:     "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20",
 		PreviousUrl: "",
-		cache: *ca.NewCache(5),
+		cache:       *ca.NewCache(5),
 	}
-
-
 
 	mapOfFuncs := cfg.commandMap()
 	scanner := bufio.NewScanner(os.Stdin)
@@ -167,10 +173,22 @@ func main() {
 			continue
 		}
 		commandClean := commandText[0]
+		var args []string
+		if len(commandText) > 1 {
+			args = commandText[1:]
+		} else {
+			args = nil
+		}
+
 		inputCommand, exists := mapOfFuncs[commandClean]
 
 		if exists {
-			inputCommand.command(&cfg)
+			if args != nil {
+				inputCommand.command(&cfg, args)
+			} else {
+				inputCommand.command(&cfg, nil)
+			}
+
 		} else {
 			fmt.Printf("Command %v doesn't exist!\n", text)
 			continue
