@@ -1,36 +1,35 @@
 package PokeCache
 
-import(
+import (
 	"fmt"
-	"time"
 	"sync"
+	"time"
 )
 
-type Cache struct{
-	entries map[string]cacheEntry
+type Cache struct {
+	entries  map[string]cacheEntry
 	interval time.Duration
-	mutex sync.Mutex
-
+	mutex    sync.Mutex
 }
 
-type cacheEntry struct{
-	createdAt time.Time 
-	val []byte
+type cacheEntry struct {
+	createdAt time.Time
+	val       []byte
 }
 
-func NewCache(interval time.Duration) (*Cache){
+func NewCache(interval time.Duration) *Cache {
 	fmt.Println("New cache created!")
 	var mu sync.Mutex
 	cache := &Cache{
 		entries: make(map[string]cacheEntry),
-		mutex: mu,
+		mutex:   mu,
 	}
-	go cache.reapLoop(interval)
+	go cache.reapLoop(interval * 1000000000)
 	return cache
 }
 
 func (c *Cache) Add(key string, val []byte) {
-	createdAt := time.Now() 
+	createdAt := time.Now()
 	var entry cacheEntry
 	entry.createdAt = createdAt
 	entry.val = val
@@ -38,23 +37,23 @@ func (c *Cache) Add(key string, val []byte) {
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
-	if c.entries[key].val != nil{
+	if c.entries[key].val != nil {
 		return c.entries[key].val, true
 	} else {
 		return []byte{}, false
 	}
 }
 
-func (c *Cache) reapLoop(interval time.Duration) error{
+func (c *Cache) reapLoop(interval time.Duration) error {
 	ticker := time.NewTicker(interval)
 	for {
-		<- ticker.C 
-		
+		<-ticker.C
+
 		c.mutex.Lock()
 		now := time.Now()
 
-		for key, entry := range(c.entries){
-			if now.Sub(entry.createdAt) > interval{
+		for key, entry := range c.entries {
+			if now.Sub(entry.createdAt) > interval {
 				delete(c.entries, key)
 			}
 		}

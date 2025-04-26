@@ -12,9 +12,10 @@ import (
 )
 
 type config struct {
-	NextUrl     string
-	PreviousUrl string
-	cache       ca.Cache
+	NextUrl      string
+	PreviousUrl  string
+	LocationArea string
+	cache        ca.Cache
 }
 
 type cliCommand struct {
@@ -26,7 +27,38 @@ type cliCommand struct {
 func (c *config) exploreCommandFunc(names []string) error {
 	if names != nil {
 		for _, name := range names {
-			fmt.Println(name)
+			fmt.Println("Exploring "+ name + "...")
+
+			
+			url := c.LocationArea + name
+
+			val, ok := c.cache.Get(url)
+			var res []byte
+			var err error
+
+			if ok {
+				res = val
+				err = nil
+			} else {
+				res, err = po.GetLocations(url)
+				if err != nil {
+					fmt.Println("Couldn't read locations from the interwebs!")
+					return err
+				} else {
+					c.cache.Add(url, res)
+				}
+
+			}
+
+			LocationStruct, err := po.UnmarshalLocation(res)
+
+			if err == nil {
+				encounters := LocationStruct.PokemonEncounters
+				fmt.Println("Found Pokemon:")
+				for _, encounter := range encounters {
+					fmt.Println("- "+encounter.Pokemon.Name)
+				}
+			}
 		}
 		return nil
 	} else {
@@ -51,7 +83,7 @@ func (c *config) mapCommandFunc(forward bool) error {
 	} else if forward && c.NextUrl == "" {
 		fmt.Println("Wrong URL!")
 	}
-
+	fmt.Println(urlToUse)
 	val, ok := c.cache.Get(urlToUse)
 	var res []byte
 	var err error
@@ -63,6 +95,8 @@ func (c *config) mapCommandFunc(forward bool) error {
 		if err != nil {
 			fmt.Println("Couldn't read locations from the interwebs!")
 			return err
+		} else {
+			c.cache.Add(urlToUse, res)
 		}
 	}
 
@@ -153,9 +187,10 @@ func cleanInput(text string) []string {
 func main() {
 
 	cfg := config{
-		NextUrl:     "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20",
-		PreviousUrl: "",
-		cache:       *ca.NewCache(5),
+		NextUrl:      "https://pokeapi.co/api/v2/location-area/?limit=20&offset=20",
+		PreviousUrl:  "",
+		cache:        *ca.NewCache(50),
+		LocationArea: "https://pokeapi.co/api/v2/location-area/",
 	}
 
 	mapOfFuncs := cfg.commandMap()

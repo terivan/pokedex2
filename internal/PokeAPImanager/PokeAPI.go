@@ -101,13 +101,12 @@ func UnmarshalJson(data []byte) ([]Locations, error) {
 	return locations, nil
 }
 
+func UnmarshalLocation(data []byte) (LocationAreaFull, error) {
 
-func UnmarshalLocation(data []byte) ([]LocationAreaFull, error){
+	var locationArea LocationAreaFull
 
-	var locationArea []LocationAreaFull
-
-	if err := json.Unmarshal(data, &locationArea); err != nil{
-		return []LocationAreaFull{}, err
+	if err := json.Unmarshal(data, &locationArea); err != nil {
+		return LocationAreaFull{}, err
 	}
 
 	return locationArea, nil
