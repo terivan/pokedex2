@@ -15,6 +15,7 @@ type config struct {
 	NextUrl      string
 	PreviousUrl  string
 	LocationArea string
+	PokemonUrl   string
 	cache        ca.Cache
 }
 
@@ -24,12 +25,20 @@ type cliCommand struct {
 	command     func(configuration *config, args []string) error
 }
 
+func (c *config) catchCommandFunc(name []string) error {
+	if len(name) > 1 {
+		return errors.New(("cannot catch more than one pokemon"))
+	} else {
+		fmt.Println("Throwing a Pokeball at " + name[0] + "...")
+		return nil
+	}
+
+}
 func (c *config) exploreCommandFunc(names []string) error {
 	if names != nil {
 		for _, name := range names {
-			fmt.Println("Exploring "+ name + "...")
+			fmt.Println("Exploring " + name + "...")
 
-			
 			url := c.LocationArea + name
 
 			val, ok := c.cache.Get(url)
@@ -56,7 +65,7 @@ func (c *config) exploreCommandFunc(names []string) error {
 				encounters := LocationStruct.PokemonEncounters
 				fmt.Println("Found Pokemon:")
 				for _, encounter := range encounters {
-					fmt.Println("- "+encounter.Pokemon.Name)
+					fmt.Println("- " + encounter.Pokemon.Name)
 				}
 			}
 		}
@@ -126,7 +135,8 @@ func (c *config) helpCommandFunc() error {
 				exit: Exit the Pokedex
 				map: Next 20 cities
 				mapb: Previous 20 cities
-				explore: Explore pokemon in location`)
+				explore: Explore pokemon in location
+				catch: Try catching certain pokemon`)
 	return nil
 }
 
@@ -174,6 +184,13 @@ func (c *config) commandMap() map[string]cliCommand {
 			return c.exploreCommandFunc(args)
 		}}
 
+	commandMap["catch"] = cliCommand{
+		name:        "catch",
+		description: "Try catching certain pokemon",
+		command: func(c *config, args []string) error {
+			return c.catchCommandFunc(args)
+		}}
+
 	return commandMap
 }
 
@@ -219,9 +236,15 @@ func main() {
 
 		if exists {
 			if args != nil {
-				inputCommand.command(&cfg, args)
+				err := inputCommand.command(&cfg, args)
+				if err != nil {
+					fmt.Println(err)
+				}
 			} else {
-				inputCommand.command(&cfg, nil)
+				err := inputCommand.command(&cfg, nil)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 
 		} else {
